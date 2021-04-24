@@ -41,7 +41,7 @@ object PostgresTable {
 }
 
 // Добавляет две опции в свойства коннектора
-case class ConnectionProperties(url: String, user: String, password: String, tableName: String, partitionSize: Int, partitionColumn: String)
+case class ConnectionProperties(url: String, user: String, password: String, tableName: String, partitionColumn: String, partitionSize: Int)
 
 /** Read */
 
@@ -51,7 +51,11 @@ class PostgresScanBuilder(options: CaseInsensitiveStringMap) extends ScanBuilder
   ))
 }
 
-class PostgresPartition(val part: Long, val steps: Long) extends InputPartition
+class PostgresPartition(val url:String,
+                        val user: String,
+                        val password: String,
+                        val part: Long,
+                        val steps: Long) extends InputPartition
 
 class PostgresScan(connectionProperties: ConnectionProperties) extends Scan with Batch {
   override def readSchema(): StructType = PostgresTable.schema
@@ -61,7 +65,7 @@ class PostgresScan(connectionProperties: ConnectionProperties) extends Scan with
   override def planInputPartitions(): Array[InputPartition] = {
     val connection = DriverManager.getConnection(connectionProperties.url, connectionProperties.user, connectionProperties.password)
     val statement = connection.createStatement()
-    val resultSet = statement.executeQuery(s"select count(*) as count from ${options.tableName}")
+    val resultSet = statement.executeQuery(s"select count(*) as count from ${connectionProperties.tableName}")
     val count = resultSet.getInt("count")
     connection.close()
     val step = count/connectionProperties.partitionSize
@@ -94,7 +98,7 @@ class PostgresPartitionReader(connectionProperties: ConnectionProperties) extend
 
 class PostgresWriteBuilder(options: CaseInsensitiveStringMap) extends WriteBuilder {
   override def buildForBatch(): BatchWrite = new PostgresBatchWrite(ConnectionProperties(
-    options.get("url"), options.get("user"), options.get("password"), options.get("tableName")
+    options.get("url"), options.get("user"), options.get("password"), options.get("tableName"), options.get("partitionColumn"), options.get("partitionSize").toInt
   ))
 }
 
