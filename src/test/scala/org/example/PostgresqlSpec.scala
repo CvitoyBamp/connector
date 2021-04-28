@@ -31,7 +31,6 @@ class PostgresqlSpec extends AnyFlatSpec with TestContainerForAll {
       .option("partitionSize", 10)
       .option("partitionColumn", "user_id")
       .load()
-      .show()
 
     spark.stop()
   }
